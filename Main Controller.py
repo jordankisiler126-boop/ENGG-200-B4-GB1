@@ -3,6 +3,7 @@ import bluetooth
 import uasyncio as asyncio
 from micropython import const
 from machine import ADC, Pin
+import gc
 
 # RENAME THIS FILE TO main.py WHEN SAVING TO THE PI PICO (Controller)
 
@@ -25,6 +26,7 @@ _BLE_APPEARANCE_GENERIC_REMOTE_CONTROL = const(384)
 adc_trtl = ADC(27)          # throttle joystick (L)
 adc_str = ADC(26)         # steer joystick (R)
 led = Pin("LED", Pin.OUT)   # LED on Pi Pico
+led1 = Pin(2,Pin.OUT)   #Led on Controller
 btn_1 = Pin(16, Pin.IN, Pin.PULL_DOWN)
 btn_2 = Pin(17, Pin.IN, Pin.PULL_DOWN)
 # Set default as disconnected
@@ -95,7 +97,9 @@ async def joystick_task():      # Sending joystick data to receiver
 async def blink_task():     # Pico LED blinks when bluetooth connected
     toggle = True
     while True:
+        gc.collect()
         led.value(toggle)
+        led1.value(toggle)
         toggle = not toggle
         await asyncio.sleep_ms(1000 if connected else 250)
 
@@ -104,6 +108,8 @@ async def blink_task():     # Pico LED blinks when bluetooth connected
 # ===============================
 
 async def main():
+    gc.collect()
     await asyncio.gather(advertise_task(), joystick_task(), blink_task())
 
 asyncio.run(main())
+
