@@ -1,3 +1,4 @@
+#ESP32 - C3 Mini based system
 from machine import Pin, PWM
 from time import sleep
 
