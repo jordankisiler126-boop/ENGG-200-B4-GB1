@@ -3,6 +3,7 @@ import bluetooth
 import uasyncio as asyncio
 from machine import Pin, PWM
 from time import sleep
+import gc
 
 # RENAME THIS FILE TO main.py WHEN SAVING TO THE PI PICO (Boat)
 
@@ -16,7 +17,7 @@ _JOYSTICK_CHARACTERISTIC_UUID = bluetooth.UUID(0x2A6E)
 
 connected = False
 led = Pin("LED", Pin.OUT)       # LED on Pi Pico
-led_green = Pin(2, Pin.OUT)     # Make sure pin number matches wiring
+led_green = Pin(22, Pin.OUT)     # Make sure pin number matches wiring
                                 #E is for throttle, Mi s direction of motor rotation
 E1 = PWM(Pin(17), freq = 500, duty_u16 = 0)
 M1 = Pin((16), Pin.OUT)
@@ -24,8 +25,11 @@ M1 = Pin((16), Pin.OUT)
 E2 = PWM(Pin(19), freq = 500, duty_u16 = 0)
 M2 = Pin((18), Pin.OUT)
                                 #Setup extra components here
-morse_led = Pin((15), Pin.OUT)
-buzzer = PWM(Pin(14), duty_u16 = 0)
+morse_led = Pin((21), Pin.OUT)
+morse_led.off()
+#buzzer = PWM(Pin(14), duty_u16 = 0)
+pirate = Pin((20), Pin.OUT)
+pirate.off()
 
 trtl_L = 0
 trtl_R = 0
@@ -113,16 +117,20 @@ def handle_command(cmd: bytes):         # Reading and using joystick data from t
         #return target 
     # convert adc into throttle and steering range: -1 to 1
     
+    
     if btn1 == 1:
         morse_led.on()
     else:
         morse_led.off()
         
     if btn2 == 1:
-        buzzer.freq(130)
-        buzzer.duty_u16(65000)
+        pirate.on()
+        print('play')
+        #buzzer.freq(130)
+        #buzzer.duty_u16(65000)
     else:
-        buzzer.duty_u16(0)
+        #buzzer.duty_u16(0)
+        pirate.off()
     
     #print(trtl_stk)
     
@@ -153,6 +161,7 @@ async def find_remote():        # Finding bluetooth transmitter
         async for result in scanner:
             if result.name() == _REMOTE_NAME:
                 return result.device
+            
     return None
 
 async def connect_task():       # Connecting to bluetooth transmitter
@@ -172,6 +181,7 @@ async def connect_task():       # Connecting to bluetooth transmitter
         async with connection:
             connected = True
             led.on()            # Green LED on (blinking) when connected
+            led_green.on()
             service = await connection.service(_GENERIC_SERVICE_UUID)
             characteristic = await service.characteristic(_JOYSTICK_CHARACTERISTIC_UUID)
             await characteristic.subscribe(notify=True)
@@ -184,11 +194,15 @@ async def connect_task():       # Connecting to bluetooth transmitter
                     print("Error:", e)
                     connected = False
                     led.off()
+                    led_green.off()
                     stop_motors()
                     break
 
         connected = False
         led.off()               # Green LED off when not connected
+        led_green.off()
+        
+        
         stop_motors()           # Make sure motors turn off when connection is lost
         await asyncio.sleep(2)
 
@@ -209,6 +223,7 @@ async def blink_task():             # LEDs blink while bluetooth connected
 # ===============================
 
 async def main():
+    gc.collect()
     await asyncio.gather(connect_task(), blink_task())
     
 asyncio.run(main())
